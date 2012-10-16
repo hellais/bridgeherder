@@ -1,0 +1,95 @@
+
+wishlist:
+ - 'stealth/evil' mode - do not launch all bridges at the same time, wait a configurable bounded random amount of time between launches. 
+
+ - iptunnel/gre support - add ability to configure and managed ip networks attached by gre tunnel
+ - 'careful' mode - do not attempt to run more than a configurable percent of the tor networks existing bridge capacity.
+   - would be nice if the capacity is measured periodically and this number changes
+
+ - sexy command line interface with menus, options, etc. see: arm
+ - figure out a way to interactively add/remove/list event timers for each bridge (e.g. provide an interface to control when and how ports are rotated
+ - provide a way to remove or replace a single listening port or port and address from a bridge
+ - provide a mechanism for attaching callbacks (a plugin interface?) at runtime
+
+immediate:
+ - make obfsproxy work
+ - don't block cli() with reactor.run(), and catch control-c
+   - signal.signal
+   - reactor.callFromThread
+   - reactor.addSystemEventTrigger('before', 'shutdown', Callable())
+   - reactor.fireSystemEvent('shutdown')
+   - reactor.callLater(delay, Callable, 'param')
+
+components:
+ - bridge launcher script
+   - isolate tor instances
+   - create directories and write configs (or use txtorconn)
+ - firewall rule generator
+   - takes a template, applies some variables
+ - torrc generator
+   - takes a template, applies some variables
+ - obfsproxy managed mode
+   - obfsproxy will pick a port randomly in managed mode. This might work fine if we don't use a firewall, but we would preferably like to select the set of listening ports ourselves, and additionally be able to reload a config with a new set of ports (for example, ports that we know are not blocked)
+
+goals:
+ - be able to start up a dynamic or configurable number of bridges
+ - be able to randomize the listening ports, rewrite configs and firewall rules
+
+steps:
+ x get a python script to launch a single Tor
+   x can launch multiple Tors, configurable with NUM_BRIDGES option.
+   x can configure the number of ports to bind on per address, up to 16
+   x can adjust the IPv4/IPv6 address ratio by percent
+    
+ - get a python script to launch a single Tor with specified listening ports
+ - XXX: figure out how to guarrantee a set of listening ports on every IP.
+ - XXX: ok, how about getting those pluggable transports to work???
+ - XXX: figure out how to listen on ports < 1024.
+   - redirect connections with firewall rules? is this really useful?
+     - is having a few thousand listening sockets open really bad?
+     - do we need to increase some file descriptor limit somewhere?
+   - can we use iptables to forward entire subnets (why not?)
+     - this means we don't need root privileges to start advertising
+       a new listening address (because client connections will always be
+       forwarded to the same listening port)
+   - keep root? not great idea if we are connected to the control port
+   - XXX: launch bridges as lower privilege user read only access to config, 
+     - not yet done XXX
+     - could launch via sudo -u ? setuid binary?
+   - make the connect progress update differentiable for each bridge
+     XXX: tag each bridge instance
+   - give some interface that lets you interact with this thing
+   - e.g. dynamically add more bridges, configure new interfaces
+   - etc... 
+   - like a bridge command shell ;)
+
+
+   - clean up variable names
+   - remove fucks
+   - fix XXX, or if it's only annoying, let someone else fix it
+   - stage some commits with some nice explanation of each module
+   x bridge instances of Tor never need to do anything other than re-read
+     a config. Why do we use txtorconn?
+       x maybe we can do some more interesting things later if we use txtorconn
+       x we want to be able to reconfigure addresses when we think they have
+         been blocked automatically.
+       x we like writing python
+
+   - how do we get packets for these networks sent to us?
+   - promiscuous arp?
+   - will my providers switch cache be fucked by my behavior? :\
+     - probably not if we are only using 20 IPs or so at a time...
+     - that is with 5 bridges. How many of these can we actually run?
+
+   - needs root privilegs (or sudo ip) to configure interfaces.
+     - what could go wrong? what else can we do?
+   - drop privilegs after binding to ports? what about at HUP?
+   - spawn child Tors as lower privileged users and retain root (hmmm)
+ - update the configuration and reload Tor
+   - can set a reload timer (e.g. in seconds, or hours)?
+   - 
+   - configuration, cached data, e.g. fingerprint and networkstatus are
+     preserved through reload(), but at reactor.stop() the keys are wiped.
+     - XXX: figure out how to get this behavior in a ramfs filesystem
+     - ideally, if power is lost, the disk will not contain these keys
+     - better, the initial state may be read from a file that can be encrypted
