@@ -1,4 +1,5 @@
-bridgeherder
-============
+# Getting started
 
-bridgeherder
+virtualenv ENV
+pip install -r requirements.txt
+./bin/bridgeherder
